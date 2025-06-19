@@ -1,0 +1,21 @@
+# Configuration file for training and evaluation
+
+dataset:
+  # Options: CUB200, IP102, StanfordDogs
+  name: CUB200
+  root: ./data/CUB200
+  batch_size: 32
+  num_workers: 4
+
+model:
+  name: resnet18
+  pretrained: true
+
+training:
+  epochs: 20
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  device: cuda
+
+logging:
+  save_dir: ./logs
