@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class MomentAct(nn.Module):
-    def __init__(self, channels, eps=1e-5, momentum=0.1):
+    def __init__(self, channels=32, eps=1e-5, momentum=0.1, inplace=False):
         super().__init__()
         self.eps = eps
         self.momentum = momentum
