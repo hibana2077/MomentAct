@@ -5,69 +5,50 @@ from timm.layers.activations import swish, mish, gelu, hard_swish
 
 # ------------------ MomentMixAct ------------------ #
 class MomentMixAct(nn.Module):
-    """
-    Dynamic mixture of {ReLU, LeakyReLU, GELU, Swish}
-    using channel-wise skewness & kurtosis as soft selectors.
-    """
-    def __init__(self, eps=1e-5, momentum=0.1, leak=0.05, **kwargs):
+    def __init__(self, eps=1e-5, momentum=0.1, **kwargs):
         super().__init__()
-        self.eps, self.momentum, self.leak = eps, momentum, leak
-        # learnable α, β (1×4 vector)
-        self.alpha = nn.Parameter(torch.zeros(4))
-        self.beta = nn.Parameter(torch.zeros(4))
-        # running stats for inference
-        self.register_buffer("running_S", torch.zeros(1))
-        self.register_buffer("running_K", torch.ones(1) * 3)
-        # pre-compute sqrt eps for efficiency
-        self.sqrt_eps = eps ** 0.5
+        self.eps, self.momentum = eps, momentum
+        self.alpha = nn.Parameter(torch.zeros(4))   # (4,)
+        self.beta  = nn.Parameter(torch.zeros(4))   # (4,)
+        self.register_buffer("running_S", torch.zeros(1))  # 之後會改成 (C,)
+        self.register_buffer("running_K", torch.ones(1)*3)
 
-    def _moments(self, x):
-        # x: (B,C,H,W) - compute over spatial dims
-        dims = (0, 2, 3) if x.dim() == 4 else (0,)
-        
-        # Single pass for mean and variance
-        mu = x.mean(dim=dims, keepdim=True)
-        x_centered = x - mu
-        var = x_centered.pow(2).mean(dim=dims, keepdim=True)
-        
-        # Standardize once
-        z = x_centered / (var + self.eps).sqrt()
-        
-        # Compute higher moments efficiently
-        z2 = z.pow(2)
-        S = (z * z2).mean(dim=dims, keepdim=True).squeeze()
-        K = (z2 * z2).mean(dim=dims, keepdim=True).squeeze()
-        
-        return S, K
+    @staticmethod
+    def _moments(x, eps):
+        dims = (0, 2, 3)            # B,H,W
+        mu  = x.mean(dims, keepdim=True)
+        var = x.var(dims, unbiased=False, keepdim=True) + eps
+        z   = (x - mu) * var.rsqrt()
+        S   = (z.pow(3)).mean(dims) # 形狀 (C,)
+        K   = (z.pow(4)).mean(dims) # 形狀 (C,)
+        return S, K                 # 都與 x 保持梯度
 
     def __repr__(self):
         """Print current running statistics in repr format"""
         return (f"{self.__class__.__name__}(eps={self.eps}, momentum={self.momentum}, "
-                f"leak={self.leak}, running_S={self.running_S.item():.6f}, "
-                f"running_K={self.running_K.item():.6f}, "
                 f"alpha={self.alpha.tolist()}, beta={self.beta.tolist()})")
 
     def forward(self, x):
+        S, K = self._moments(x, self.eps)           # (C,)
         if self.training:
-            S, K = self._moments(x)
-            # Update running stats without gradient
-            S_mean, K_mean = S.mean().detach(), K.mean().detach()
-            self.running_S.mul_(1 - self.momentum).add_(S_mean, alpha=self.momentum)
-            self.running_K.mul_(1 - self.momentum).add_(K_mean, alpha=self.momentum)
+            # running stats 也改成 (C,) 以便推論時仍能 per-channel
+            if self.running_S.numel() != S.numel():
+                self.running_S = torch.zeros_like(S)
+                self.running_K = torch.ones_like(K)
+            self.running_S.lerp_(S.detach(), self.momentum)
+            self.running_K.lerp_(K.detach(), self.momentum)
+            S_use, K_use = S, K
         else:
-            S_mean, K_mean = self.running_S, self.running_K
+            S_use, K_use = self.running_S, self.running_K
 
-        # Compute weights efficiently
-        logits = self.alpha * S_mean + self.beta * (K_mean - 3)
-        w = F.softmax(logits, dim=0)
+        # 4×C logits，不要 detach，保持可微
+        logits = (self.alpha.view(4, 1) * S_use +
+                  self.beta.view(4, 1)  * (K_use - 3))
+        w = F.softmax(logits, dim=0)                # 形狀 (4,C)
 
-        # Apply activations - vectorized computation
-        activations = torch.stack([
-            F.relu(x),
-            mish(x),
-            gelu(x),
-            swish(x),
-        ])  # (4, B, C, H, W)
-        
-        # Weighted sum
-        return torch.sum(w.view(-1, 1, 1, 1, 1) * activations, dim=0)
+        # 算四種 activation
+        out = w[0].unsqueeze(1).unsqueeze(2) * F.relu(x)
+        out += w[1].unsqueeze(1).unsqueeze(2) * F.leaky_relu(x, 0.05)
+        out += w[2].unsqueeze(1).unsqueeze(2) * F.gelu(x)
+        out += w[3].unsqueeze(1).unsqueeze(2) * swish(x)
+        return out

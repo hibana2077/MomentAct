@@ -11,12 +11,13 @@ dataset:
   num_workers: 4
 
 model:
-  name: resnet50
+  name: efficientnet_b2.ra_in1k
+  # name: resnet50
   pretrained: true
 
 activation:
   # Options: relu, moment, swish, mish 
-  type: moment
+  type: relu
 
 training:
   epochs: 20
