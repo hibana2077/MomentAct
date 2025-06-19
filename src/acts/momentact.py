@@ -48,7 +48,8 @@ class MomentMixAct(nn.Module):
 
         # 算四種 activation
         out = w[0].unsqueeze(1).unsqueeze(2) * F.relu(x)
-        out += w[1].unsqueeze(1).unsqueeze(2) * F.leaky_relu(x, 0.05)
+        # out += w[1].unsqueeze(1).unsqueeze(2) * F.leaky_relu(x, 0.05)
+        out += w[1].unsqueeze(1).unsqueeze(2) * mish(x)
         out += w[2].unsqueeze(1).unsqueeze(2) * F.gelu(x)
         out += w[3].unsqueeze(1).unsqueeze(2) * swish(x)
         return out

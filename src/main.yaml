@@ -8,16 +8,17 @@ dataset:
   name: CUB200
   root: ./data/CUB200
   batch_size: 32
-  num_workers: 4
+  num_workers: 6
 
 model:
-  name: efficientnet_b2.ra_in1k
-  # name: resnet50
+  # name: efficientnet_b2.ra_in1k
+  # name: efficientvit_b3
+  name: resnet50
   pretrained: true
 
 activation:
   # Options: relu, moment, swish, mish 
-  type: relu
+  type: moment
 
 training:
   epochs: 20
