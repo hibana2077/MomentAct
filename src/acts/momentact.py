@@ -63,7 +63,7 @@ class MomentMixAct(nn.Module):
 
         # Apply activations - vectorized computation
         activations = torch.stack([
-            hard_swish(x),
+            F.relu(x),
             mish(x),
             gelu(x),
             swish(x),
