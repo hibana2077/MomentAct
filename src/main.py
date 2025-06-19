@@ -68,6 +68,8 @@ def main():
     epochs = cfg['training']['epochs']
     history = []
     best_val_acc = 0.0
+    best_y_true = None
+    best_y_pred = None
     
     print(f"\nStarting training for {epochs} epochs...")
     for epoch in range(1, epochs + 1):
@@ -86,9 +88,11 @@ def main():
             'val_acc': val_acc
         })
         
-        # Update best validation accuracy
+        # Update best validation accuracy and save best predictions
         if val_acc > best_val_acc:
             best_val_acc = val_acc
+            best_y_true = y_true
+            best_y_pred = y_pred
 
     print(f"\nTraining completed! Best validation accuracy: {best_val_acc:.4f}")
 
@@ -102,12 +106,12 @@ def main():
     
     # Save classification report (replacing confusion matrix as primary evaluation)
     report_path = os.path.join(save_dir, f"{base_filename}classification_report.csv")
-    save_classification_report(y_true, y_pred, class_names, report_path)
+    save_classification_report(best_y_true, best_y_pred, class_names, report_path)
     print(f"Classification report saved to: {report_path}")
     
     # Still save confusion matrix for reference
     cm_path = os.path.join(save_dir, f"{base_filename}confusion_matrix.png")
-    save_confusion_matrix(y_true, y_pred, class_names, cm_path)
+    save_confusion_matrix(best_y_true, best_y_pred, class_names, cm_path)
     print(f"Confusion matrix saved to: {cm_path}")
     
     print(f"\nAll results saved with prefix: {base_filename}")
