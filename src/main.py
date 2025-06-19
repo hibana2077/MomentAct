@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import timm
+import random
+import numpy as np
 
 # Import utilities
 from utils.data_loader import get_dataloaders
@@ -15,11 +17,28 @@ from utils.logging import (
 )
 
 
+def set_random_seed(seed):
+    """Set random seed for reproducibility"""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # Make CuDNN deterministic
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 def main():
     # Load configuration
     cfg_path = os.path.join(os.path.dirname(__file__), 'main.yaml')
     with open(cfg_path, 'r') as f:
         cfg = yaml.safe_load(f)
+    
+    # Set random seed for reproducibility
+    seed = cfg.get('seed', 42)
+    set_random_seed(seed)
+    print(f"Random seed set to: {seed}")
 
     # Extract configuration values
     model_name = cfg['model']['name']
@@ -70,6 +89,7 @@ def main():
     best_val_acc = 0.0
     best_y_true = None
     best_y_pred = None
+    best_model = None
     
     print(f"\nStarting training for {epochs} epochs...")
     for epoch in range(1, epochs + 1):
@@ -93,6 +113,7 @@ def main():
             best_val_acc = val_acc
             best_y_true = y_true
             best_y_pred = y_pred
+            best_model = model
 
     print(f"\nTraining completed! Best validation accuracy: {best_val_acc:.4f}")
 
@@ -115,6 +136,9 @@ def main():
     print(f"Confusion matrix saved to: {cm_path}")
     
     print(f"\nAll results saved with prefix: {base_filename}")
+    
+    if cfg['activation']['type'] == 'moment':
+        print(best_model)
 
 
 if __name__ == '__main__':

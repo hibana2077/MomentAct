@@ -3,7 +3,8 @@ Model creation and activation utilities.
 """
 import torch.nn as nn
 import timm
-from acts.momentact import MomentAct
+from acts.momentact import MomentMixAct
+from timm.layers import create_act
 
 
 def create_model_with_activation(cfg, num_classes):
@@ -47,12 +48,14 @@ def get_activation_layer(activation_type):
     """
     activation_map = {
         'relu': nn.ReLU,
-        'leaky_relu': nn.LeakyReLU,
-        'sigmoid': nn.Sigmoid,
-        'tanh': nn.Tanh,
         'gelu': nn.GELU,
         'swish': nn.SiLU,
-        'moment': MomentAct,
+        'mish': nn.Mish,
+        'hard_swish': nn.Hardswish,
+        'leaky_relu': nn.LeakyReLU,
+        'prelu': nn.PReLU,
+        'elu': nn.ELU,
+        'moment': MomentMixAct,
     }
     
     return activation_map.get(activation_type, nn.ReLU)

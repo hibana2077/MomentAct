@@ -1,5 +1,8 @@
 # Configuration file for training and evaluation
 
+# Reproducibility
+seed: 42
+
 dataset:
   # Options: CUB200, IP102, StanfordDogs
   name: CUB200
@@ -8,12 +11,12 @@ dataset:
   num_workers: 4
 
 model:
-  name: resnet50
+  name: resnet18
   pretrained: true
 
 activation:
-  # Options: relu, leaky_relu, sigmoid, tanh, moment
-  type: relu
+  # Options: relu, moment, swish, mish 
+  type: moment
 
 training:
   epochs: 20
