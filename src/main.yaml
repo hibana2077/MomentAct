@@ -11,6 +11,10 @@ model:
   name: resnet18
   pretrained: true
 
+activation:
+  # Options: relu, leaky_relu, sigmoid, tanh, moment
+  type: relu
+
 training:
   epochs: 20
   learning_rate: 0.001

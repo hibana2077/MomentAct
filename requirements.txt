@@ -1,7 +1,10 @@
 timm
-pyyaml
+pyyaml 
 tqdm
 scikit-learn
 matplotlib
 pandas
 Pillow
+seaborn
+torch
+torchvision
